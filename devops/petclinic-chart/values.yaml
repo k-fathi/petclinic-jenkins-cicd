@@ -1,0 +1,55 @@
+# 1. The Deployment section
+environment: dev
+
+deployment:
+  replicas: 1
+  image:
+    repository: karimfathi1/spring-petclinic
+    tag: 2.7.0
+    pullPolicy: IfNotPresent
+    containerPort: 8080
+app:
+  profile: mysql
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 50
+
+App_Service:
+  type: ClusterIP
+  port: 8080
+
+
+Ingress:
+  enabled: false
+  hosts:
+    host: petclinic.local
+
+
+# 2. The Database Section
+mysql:
+  architecture: standalone
+  auth:
+    database: petclinic
+    username: petclinic
+    password: petclinic
+    rootPassword: rootpassword
+  # this section is responsible for the persistence of the database
+  # if you want to use a persistent volume, you can set the persistence.enabled to true and set the size of the volume
+  primary:
+    persistence:
+      enabled: true
+      size: 5Gi

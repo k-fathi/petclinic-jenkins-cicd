@@ -1,0 +1,25 @@
+{{- if .Values.Ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-ing
+  # annotations:
+    # nginx.ingress.kubernetes.io/rewrite-target: / # to rewrite the path to the root of the service, this is for nginx ingress controller, for traefik it is not needed
+  labels:
+    app: {{ .Release.Name }}-petclinic
+    env: {{ .Values.environment }}
+spec:
+  # ingressClassName: nginx # nginx is not default in k3s 
+  ingressClassName: traefik
+  rules:
+    - host: {{ .Values.Ingress.hosts.host }} # DNS Name of the LoadBalancer or its IP
+      http: 
+        paths:
+          - pathType: Prefix
+            path: /
+            backend: 
+              service: 
+                name: {{ .Release.Name }}-petclinic-svc # service name
+                port:
+                  number: {{ .Values.App_Service.port }} # service port 
+{{- end }}              

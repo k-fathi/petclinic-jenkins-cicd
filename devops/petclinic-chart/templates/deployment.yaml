@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-petclinic-deployment
+  labels:
+    env: {{ .Values.environment}}
+    app: {{ .Release.Name }}-petclinic
+spec: 
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-petclinic
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-petclinic
+    spec:
+      containers:
+        - name: {{ .Release.Name }}-container
+          image: {{ .Values.deployment.image.repository}}:{{ .Values.deployment.image.tag}}
+          imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
+          ports:
+          - containerPort: {{ .Values.deployment.image.containerPort }}
+            protocol: TCP
+          resources:
+            limits:
+              memory: {{ .Values.resources.limits.memory }} 
+              cpu: {{ .Values.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+          
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: {{ .Values.deployment.image.containerPort }}   
+            initialDelaySeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.deployment.image.containerPort }}
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            failureThreshold: 2
+
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: {{ .Values.deployment.image.containerPort }}
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            failureThreshold: 3
+          
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-app-configmap
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mysql # the mysql chart secret file
+                  key: mysql-password # the key of the mysql chart secret file 

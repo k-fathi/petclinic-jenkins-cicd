@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-app-configmap
+  labels:
+    app: {{ .Release.Name }}-petclinic
+    env: {{ .Values.environment }}
+data:
+  DB_URL: "jdbc:mysql://{{ .Release.Name }}-mysql:3306/{{ .Values.mysql.auth.database }}"
+  DB_USERNAME: {{ .Values.mysql.auth.username }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.app.profile }}
+  

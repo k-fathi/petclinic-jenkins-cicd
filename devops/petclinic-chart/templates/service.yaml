@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-petclinic-svc
+  labels:
+    app: {{ .Release.Name }}-petclinic
+    env: {{ .Values.environment }}
+spec:
+  type: {{ .Values.App_Service.type }}
+  selector:
+    app: {{ .Release.Name }}-petclinic
+  ports:
+  - name: http
+    targetPort: {{ .Values.deployment.image.containerPort }}
+    port: {{ .Values.App_Service.port }}
+    protocol: TCP

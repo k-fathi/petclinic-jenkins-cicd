@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # The Spring Boot Application Service
+  petclinic-app:
+    build: . # Build the image from the Dockerfile in the current directory
+    container_name: petclinic-app
+    restart: on-failure
+    depends_on:
+      - petclinic-db # Wait for the database to be ready before starting
+    ports:
+      - "8080:8080"
+    environment:
+      # Activate the 'mysql' profile in the application.properties
+      - SPRING_PROFILES_ACTIVE=mysql
+      # Pass the database connection details to the application
+      - DB_URL=jdbc:mysql://petclinic-db:3306/petclinic
+      - DB_USERNAME=petclinic
+      - DB_PASSWORD=petclinic
+
+  # The MySQL Database Service
+  petclinic-db:
+    image: mysql:8.0
+    container_name: petclinic-db
+    restart: always
+    environment:
+      - MYSQL_DATABASE=petclinic
+      - MYSQL_USER=petclinic
+      - MYSQL_PASSWORD=petclinic
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - db_data:/var/lib/mysql # Persist database data
+
+volumes:
+  db_data: {}

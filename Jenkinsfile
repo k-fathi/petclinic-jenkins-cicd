@@ -235,35 +235,36 @@ pipeline {
             when{
                 changeset "spring-petclinic/**/*"
             }
-            steps{
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_PWD', usernameVariable: 'DOCKERHUB_USER')]) {
-                    sh 'echo  Loggin to DockerHub now...'
-                    sh 'echo "${DOCKERHUB_PWD}" | docker login -u ${DOCKERHUB_USER} --password-stdin'
-                  
-                    sh 'echo  Building The Image now...'
-                    sh 'export DOCKER_BUILDKIT=0 && docker build --platform linux/amd64 -t ${REPO}/${IMG}:${TAG} -t ${REPO}/${IMG}:latest .'
-                    sh 'echo  Trivy Scanning the Image now...'
+            dir('spring-petclinic'){
+                steps{
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_PWD', usernameVariable: 'DOCKERHUB_USER')]) {
+                        sh 'echo  Loggin to DockerHub now...'
+                        sh 'echo "${DOCKERHUB_PWD}" | docker login -u ${DOCKERHUB_USER} --password-stdin'
                     
-                    // use tviry as inline docker command to scan the image, and mount the trivy cache dir to avoid downloading the vulnerability database every time
-                    // used the douple quotes besace only jenkins can evaluate the variables before passing it to the shell
-                    // if '' are used the entire command will evaluated in the shell but the shell doesn't even know the variables, so it will fail 
+                        sh 'echo  Building The Image now...'
+                        sh 'export DOCKER_BUILDKIT=0 && docker build --platform linux/amd64 -t ${REPO}/${IMG}:${TAG} -t ${REPO}/${IMG}:latest .'
+                        sh 'echo  Trivy Scanning the Image now...'
+                        
+                        // use tviry as inline docker command to scan the image, and mount the trivy cache dir to avoid downloading the vulnerability database every time
+                        // used the douple quotes besace only jenkins can evaluate the variables before passing it to the shell
+                        // if '' are used the entire command will evaluated in the shell but the shell doesn't even know the variables, so it will fail 
+                        sh """
+                        docker run --rm \
+                                -v ${env.TRIVY_SCA_CACHE}:/tmp/.trivy \
+                                -v /var/run/docker.sock:/var/run/docker.sock \
+                                aquasec/trivy \
+                                image --severity HIGH,CRITICAL \
+                                --exit-code 0 \
+                                ${REPO}/${IMG}:${TAG}
+                        """
+                        // exit code 1 to make the pipeline fail if any vulnerability found.
+                        
+                        sh 'echo  Pushing the Images now...'
+                        sh "docker push ${REPO}/${IMG}:${TAG}"
+                        sh "docker push ${REPO}/${IMG}:latest"
+                    }
+                    sh 'echo  Generating the deploy file now...'
                     sh """
-                    docker run --rm \
-                            -v ${env.TRIVY_SCA_CACHE}:/tmp/.trivy \
-                            -v /var/run/docker.sock:/var/run/docker.sock \
-                            aquasec/trivy \
-                            image --severity HIGH,CRITICAL \
-                            --exit-code 0 \
-                            ${REPO}/${IMG}:${TAG}
-                    """
-                    // exit code 1 to make the pipeline fail if any vulnerability found.
-                    
-                    sh 'echo  Pushing the Images now...'
-                    sh "docker push ${REPO}/${IMG}:${TAG}"
-                    sh "docker push ${REPO}/${IMG}:latest"
-                }
-                sh 'echo  Generating the deploy file now...'
-                sh """
                     cat > deploy-info-${BUILD_NUMBER}.txt <<EOF
 image: ${REPO}/${IMG}:${TAG}
 build: ${BUILD_NUMBER}
@@ -272,7 +273,8 @@ branch: ${GIT_BRANCH}
 url: ${env.BUILD_URL}
 date: \$(date +"%Y_%m_%d-%H:%M:%S")
 EOF
-                """
+                    """
+                }
             }
         }
         // stage('10. Deploying & Scanning The Running App'){

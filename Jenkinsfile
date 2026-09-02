@@ -235,8 +235,8 @@ pipeline {
             when{
                 changeset "spring-petclinic/**/*"
             }
-            dir('spring-petclinic'){
-                steps{
+            steps{
+                dir('spring-petclinic'){
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKERHUB_PWD', usernameVariable: 'DOCKERHUB_USER')]) {
                         sh 'echo  Loggin to DockerHub now...'
                         sh 'echo "${DOCKERHUB_PWD}" | docker login -u ${DOCKERHUB_USER} --password-stdin'
@@ -265,7 +265,7 @@ pipeline {
                     }
                     sh 'echo  Generating the deploy file now...'
                     sh """
-                    cat > deploy-info-${BUILD_NUMBER}.txt <<EOF
+                        cat > deploy-info-${BUILD_NUMBER}.txt <<EOF
 image: ${REPO}/${IMG}:${TAG}
 build: ${BUILD_NUMBER}
 commit: ${GIT_COMMIT}
@@ -275,7 +275,7 @@ date: \$(date +"%Y_%m_%d-%H:%M:%S")
 EOF
                     """
                 }
-            }
+            }            
         }
         // stage('10. Deploying & Scanning The Running App'){
         //     steps{

@@ -186,7 +186,7 @@ pipeline {
                 // sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent verify org.jacoco:jacoco-maven-plugin:report -Dmaven.test.failure.ignore=true'
                 dir('./spring-petclinic/') {
                     sh "echo 'Running Unit Tests & Integration Tests with JaCoCo...'"
-                    sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent test org.jacoco:jacoco-maven-plugin:report -Dmaven.test.failure.ignore=true -DskipITs'
+                    sh 'mvn org.jacoco:jacoco-maven-plugin:prepare-agent package org.jacoco:jacoco-maven-plugin:report -Dmaven.test.failure.ignore=true -DskipITs'
                 }
 
             }

@@ -243,11 +243,11 @@ pipeline {
                     
                         sh 'echo  Building The Image now...'
                         sh 'export DOCKER_BUILDKIT=0 && docker build --platform linux/amd64 -t ${REPO}/${IMG}:${TAG} -t ${REPO}/${IMG}:latest .'
-                        sh 'echo  Trivy Scanning the Image now...'
                         
                         // use tviry as inline docker command to scan the image, and mount the trivy cache dir to avoid downloading the vulnerability database every time
                         // used the douple quotes besace only jenkins can evaluate the variables before passing it to the shell
                         // if '' are used the entire command will evaluated in the shell but the shell doesn't even know the variables, so it will fail 
+                        sh 'echo  Trivy Scanning the Image now...'
                         sh """
                         docker run --rm \
                                 -v ${env.TRIVY_SCA_CACHE}:/tmp/.trivy \
@@ -277,51 +277,71 @@ EOF
                 }
             }            
         }
-        // stage('10. Deploying & Scanning The Running App'){
-        //     steps{
+        stage('10. Deploy to K3d Cluster'){
+            agent{
+                docker{
+                    image 'alpine/helm:3.14.0'
+                    args '--network devops-net'
+                }
+            }
+            steps{
+                dir('devops/'){
+                    sh """
+                    hemlm upgrade --install petclinic ./petclinic-cart \
+                    --namespace petclinic --create-namespace \
+                    --set deployment.image.tag=${BUILD_NUMBER} \
+                    --wait --timeout 5m 
+                    """
+                }
+            }
+        }
+        stage('smoke testing'){
+            steps{
+                sh "echo  Running A Smoke Testing..."
+                sh """
+                    SUCCESS=0
+                    for i in {1..5}; do
+                        if curl -s -H "Host: petclinic.local" http://k3d-k3d-cluster-serverlb/ | grep -iE "Welcome|PetClinic|Spring"; then
+                            SUCCESS=1
+                            break
+                        else
+                            echo "Attempt $i failed. Retrying in 5 seconds..."
+                            sleep 5
+                        fi
+                    done
+                    if [ \$SUCCESS -eq 1 ]; then
+                        echo "Smoke test passed!"
+                    else
+                        echo "Smoke test failed after 5 attempts."
+                        exit 1
+                    fi
+                """
+            }
+        }
+        stage('DAST - OWASP ZAP') {
+            steps {
+                echo "Starting OWASP ZAP Baseline Security Scan..."
+                sh """
+                    mkdir -p zap-reports
+                    chmod 777 zap-reports
 
-        //         sh "echo  Removing any existing container with the same name..."
-        //         sh "docker rm -f ${CONTAINER_NAME} || true"
-
-        //         sh "echo  Running the container..."
-        //         sh "docker run -d --name ${CONTAINER_NAME} -p 8888:${APP_PORT} ${REPO}/${IMG}:${TAG}"
-                
-        //         sh "echo  Running A Smoke Testing..."
-        //         sh """
-        //             SUCCESS=0
-        //             for i in {1..5}; do
-        //                 if curl -s http://${CONTAINER_NAME}:${APP_PORT} | grep -iE "Welcome|PetClinic|Spring"; then
-        //                     SUCCESS=1
-        //                     break
-        //                 else
-        //                     echo "Attempt $i failed. Retrying in 5 seconds..."
-        //                     sleep 5
-        //                 fi
-        //             done
-        //             if [ \$SUCCESS -eq 1 ]; then
-        //                 echo "Smoke test passed!"
-        //             else
-        //                 echo "Smoke test failed after 5 attempts."
-        //                 exit 1
-        //             fi
-        //         """
-                
-        //         sh "echo Running DAST..."
-        //         sh """
-        //             docker run --rm --network pipeline-net \
-        //             zaproxy/zap-stable \
-        //             zap-baseline.py \
-        //             -t http://${CONTAINER_NAME}:8080 \
-        //             -r zap-report.html \
-        //             -l WARN \
-        //             || true
-        //         """
-        //     }
-        // }
+                    docker run --rm \
+                    --network devops-net \
+                    --add-host petclinic.local:172.22.0.4 \
+                    -v \$(pwd)/zap-reports:/zap/wrk/:rw \
+                    ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+                    -t http://petclinic.local/ \
+                    -r zap-report.html \
+                    -I || true
+                    docker cp zap-scanner:/zap/wrk/zap-report.html ./zap-report.html || true
+                    docker rm -f zap-scanner || true
+                """
+            }
+        }
     }
-    
     post {
         always {
+            archiveArtifacts artifacts: 'zap-report.html', allowEmptyArchive: true
             sh 'echo "Cleaning up the Workspace..."'
             cleanWs()
         }

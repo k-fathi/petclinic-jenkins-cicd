@@ -2,7 +2,7 @@
 environment: dev
 
 deployment:
-  replicas: 1
+  replicas: 4
   image:
     repository: karimfathi1/spring-petclinic
     tag: 2.7.0
@@ -34,7 +34,7 @@ App_Service:
 
 
 Ingress:
-  enabled: false
+  enabled: true
   hosts:
     host: petclinic.local
 

@@ -32,14 +32,14 @@ spec:
           
           startupProbe:
             httpGet:
-              path: /livez
+              path: /actuator/health/liveness
               port: {{ .Values.deployment.image.containerPort }}   
             initialDelaySeconds: 5
             failureThreshold: 30
 
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: /actuator/health/readiness
               port: {{ .Values.deployment.image.containerPort }}
             initialDelaySeconds: 0
             periodSeconds: 5
@@ -47,7 +47,7 @@ spec:
 
           livenessProbe:
             httpGet:
-              path: /livez
+              path: /actuator/health/liveness
               port: {{ .Values.deployment.image.containerPort }}
             initialDelaySeconds: 0
             periodSeconds: 10

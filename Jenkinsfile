@@ -160,8 +160,16 @@ pipeline {
                         stage('Secrets Scanning') {
                             steps {
                                 sh 'echo "Secrets Scanning - Trivy Scans Secrets..."'
-                                // sh "trivy fs --scanners secret --severity CRITICAL,HIGH --offline-scan --exit-code 1 ."
-                                sh "trivy fs --scanners secret --severity CRITICAL,HIGH --offline-scan --exit-code 0 ."
+                                sh """
+                                    trivy fs \
+                                    --scanners secret \
+                                    --severity CRITICAL,HIGH \
+                                    --offline-scan \
+                                    --skip-dirs "**/*@tmp" \
+                                    --skip-dirs "**/.git" \
+                                    --skip-dirs "**/target" \
+                                    --exit-code 0 .
+                                """
                             }
                         }
                     } 

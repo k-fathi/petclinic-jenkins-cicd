@@ -41,6 +41,8 @@ Ingress:
 
 # 2. The Database Section
 mysql:
+  image:
+    tag: "8.0-debian-12"
   architecture: standalone
   auth:
     database: petclinic

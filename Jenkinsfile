@@ -295,7 +295,7 @@ EOF
             }
             steps {
                 dir('devops/') {
-                    withCredentials([file(credentialsId: 'k3d-kubeconfig', variable: 'KUBECONFIG')]) {
+                    withCredentials([file(credentialsId: 'k3d-cluster', variable: 'KUBECONFIG')]) {
                         sh """
                             if [ -f "../spring-petclinic/deploy-info-${BUILD_NUMBER}.txt" ]; then
                                 echo "New application image built in this run. Using Tag: ${BUILD_NUMBER}"

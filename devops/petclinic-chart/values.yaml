@@ -42,7 +42,9 @@ Ingress:
 # 2. The Database Section
 mysql:
   image:
-    tag: "8.0-debian-12"
+    registry: public.ecr.aws
+    repository: bitnami/mysql
+    tag: "8.0"
   architecture: standalone
   auth:
     database: petclinic

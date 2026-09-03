@@ -250,7 +250,7 @@ pipeline {
                         sh 'echo  Trivy Scanning the Image now...'
                         sh """
                         docker run --rm \
-                                -v ${env.TRIVY_SCA_CACHE}:/tmp/.trivy \
+                                -v ${env.TRIVY_HOST_CACHE}:/tmp/.trivy \
                                 -v /var/run/docker.sock:/var/run/docker.sock \
                                 aquasec/trivy \
                                 image --severity HIGH,CRITICAL \
@@ -277,21 +277,37 @@ EOF
                 }
             }            
         }
-        stage('10. Deploy to K3d Cluster'){
-            agent{
-                docker{
+        stage('10. Deploy to K3d Cluster') {
+            agent {
+                docker {
                     image 'alpine/helm:3.14.0'
-                    args '--network devops-net'
+                    args '-u 0:0 --entrypoint="" --network devops-net'
+                    reuseNode true
                 }
             }
-            steps{
-                dir('devops/'){
+            steps {
+                dir('devops/') {
                     withCredentials([file(credentialsId: 'k3d-kubeconfig', variable: 'KUBECONFIG')]) {
                         sh """
-                        helm upgrade --install petclinic ./petclinic-chart \
+                            if [ -f "../spring-petclinic/deploy-info-${BUILD_NUMBER}.txt" ]; then
+                                echo "New application image built in this run. Using Tag: ${BUILD_NUMBER}"
+                                DEPLOY_TAG="${BUILD_NUMBER}"
+                            else
+                                echo "No new app build detected. Checking cluster for current running tag..."
+                                CURRENT_TAG=\$(kubectl get deployment petclinic -n petclinic -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null | awk -F: '{print \$2}')
+                                
+                                if [ -n "\$CURRENT_TAG" ]; then
+                                    echo "Found currently running tag: \$CURRENT_TAG. Preserving it."
+                                    DEPLOY_TAG="\$CURRENT_TAG"
+                                else
+                                    echo "No active deployment found on cluster. Falling back to latest."
+                                    DEPLOY_TAG="latest"
+                                fi
+                            fi
+                            helm upgrade --install petclinic ./petclinic-chart \
                             --namespace petclinic --create-namespace \
-                            --set deployment.image.tag=${BUILD_NUMBER} \
-                            --wait --timeout 5m 
+                            --set deployment.image.tag=\${DEPLOY_TAG} \
+                            --wait --timeout 5m
                         """
                     }
                 }
@@ -324,17 +340,15 @@ EOF
             steps {
                 echo "Starting OWASP ZAP Baseline Security Scan..."
                 sh """
-                    mkdir -p zap-reports
-                    chmod 777 zap-reports
-
-                    docker run --rm \
+                    docker rm -f zap-scanner || true
+                    docker run --name zap-scanner \
                     --network devops-net \
                     --add-host petclinic.local:172.22.0.4 \
-                    -v \$(pwd)/zap-reports:/zap/wrk/:rw \
                     ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                     -t http://petclinic.local/ \
                     -r zap-report.html \
                     -I || true
+
                     docker cp zap-scanner:/zap/wrk/zap-report.html ./zap-report.html || true
                     docker rm -f zap-scanner || true
                 """

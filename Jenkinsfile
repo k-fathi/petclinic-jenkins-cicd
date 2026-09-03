@@ -286,12 +286,14 @@ EOF
             }
             steps{
                 dir('devops/'){
-                    sh """
-                    hemlm upgrade --install petclinic ./petclinic-cart \
-                    --namespace petclinic --create-namespace \
-                    --set deployment.image.tag=${BUILD_NUMBER} \
-                    --wait --timeout 5m 
-                    """
+                    withCredentials([file(credentialsId: 'k3d-kubeconfig', variable: 'KUBECONFIG')]) {
+                        sh """
+                        helm upgrade --install petclinic ./petclinic-chart \
+                            --namespace petclinic --create-namespace \
+                            --set deployment.image.tag=${BUILD_NUMBER} \
+                            --wait --timeout 5m 
+                        """
+                    }
                 }
             }
         }

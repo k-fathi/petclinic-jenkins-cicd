@@ -44,7 +44,7 @@ mysql:
   image:
     registry: public.ecr.aws
     repository: bitnami/mysql
-    tag: "8.0"
+    tag: "latest"
   architecture: standalone
   auth:
     database: petclinic
